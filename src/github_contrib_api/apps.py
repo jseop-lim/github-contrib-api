@@ -8,6 +8,8 @@ from github_contrib_api.utils import parse_datetime
 async def get_repo_names(
     org_name: str,
     github_token: str,
+    start_datetime: datetime,
+    end_datetime: datetime,
 ) -> list[str]:
     base_url = "https://api.github.com"
     headers = {"Authorization": f"token {github_token}"}
@@ -27,7 +29,9 @@ async def get_repo_names(
         )
 
     repo_names = [
-        repo["name"] for repo in repos if parse_datetime(repo["pushed_at"]).year >= 2023
+        repo["name"]
+        for repo in repos
+        if start_datetime <= parse_datetime(repo["pushed_at"]) <= end_datetime
     ]
     return repo_names
 
@@ -36,23 +40,23 @@ async def get_merged_pr_count(
     org_name: str,
     repo_names: list[str],
     github_token: str,
+    start_datetime: datetime,
+    end_datetime: datetime,
 ) -> dict[str, int]:
     """PR 관련 지표를 구한다.
 
     - 각 팀원이 2023년에 회사 GitHub 조직의 모든 저장소에 생성하고 병합한 PR 수
     """
     base_url = "https://api.github.com"
-    min_datetime = datetime(2023, 1, 1).astimezone()
-    max_datetime = datetime(2024, 1, 1).astimezone()
     merged_pr_counts = {}
     headers = {"Authorization": f"token {github_token}"}
 
     async with ClientSession() as session:
         for repo in repo_names:
             count = 0
-            earliest_merged_at = max_datetime
+            earliest_merged_at = end_datetime
             page = 1
-            while earliest_merged_at >= min_datetime:
+            while earliest_merged_at >= start_datetime:
                 prs = await fetch(
                     session,
                     f"{base_url}/repos/{org_name}/{repo}/pulls",
@@ -69,16 +73,16 @@ async def get_merged_pr_count(
                 if (
                     not prs
                     or not prs[-1]["merged_at"]
-                    or earliest_merged_at < min_datetime
+                    or earliest_merged_at < start_datetime
                 ):
                     break
 
                 for pr in prs:
                     if (
                         pr["merged_at"]
-                        and min_datetime
+                        and start_datetime
                         <= parse_datetime(pr["merged_at"])
-                        < max_datetime
+                        <= end_datetime
                     ):
                         user_login = pr["user"]["login"]
                         if user_login not in merged_pr_counts:
@@ -97,6 +101,8 @@ async def get_pr_review_count(
     org_name: str,
     repo_names: list[str],
     github_token: str,
+    start_datetime: datetime,
+    end_datetime: datetime,
 ) -> dict[str, dict[str, int]]:
     """리뷰 관련 지표를 구한다.
 
@@ -105,8 +111,6 @@ async def get_pr_review_count(
     - requested: 각 팀원이 2023년에 회사 GitHub 조직의 모든 저장소에 대해 리뷰를 요청 받은 PR 수
     """
     base_url = "https://api.github.com"
-    min_datetime = datetime(2023, 1, 1).astimezone()
-    max_datetime = datetime(2024, 1, 1).astimezone()
     review_counts = {}
     reviewed_pr_counts = {}
     review_requested_counts = {}
@@ -115,9 +119,9 @@ async def get_pr_review_count(
     async with ClientSession() as session:
         for repo in repo_names:
             count = 0
-            earliest_created_at = max_datetime
+            earliest_created_at = end_datetime
             page = 1
-            while earliest_created_at >= min_datetime:
+            while earliest_created_at >= start_datetime:
                 prs = await fetch(
                     session=session,
                     url=f"{base_url}/repos/{org_name}/{repo}/pulls",
@@ -134,13 +138,15 @@ async def get_pr_review_count(
                 if (
                     not prs
                     or not prs[-1]["created_at"]
-                    or earliest_created_at < min_datetime
+                    or earliest_created_at < start_datetime
                 ):
                     break
 
                 for pr in prs:
                     if not (
-                        min_datetime <= parse_datetime(pr["created_at"]) < max_datetime
+                        start_datetime
+                        <= parse_datetime(pr["created_at"])
+                        <= end_datetime
                     ):
                         continue
 
