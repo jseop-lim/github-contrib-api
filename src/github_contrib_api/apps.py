@@ -1,8 +1,8 @@
 from aiohttp import ClientSession
 from datetime import datetime
 
-from github_contrib_api.core import fetch
-from github_contrib_api.utils import parse_datetime
+from .core import fetch
+from .utils import parse_datetime
 
 
 async def get_repo_names(
