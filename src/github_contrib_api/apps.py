@@ -6,7 +6,7 @@ from github_contrib_api.utils import parse_datetime
 
 
 async def get_repo_names(
-    org_name: str,
+    owner_name: str,
     github_token: str,
     start_datetime: datetime,
     end_datetime: datetime,
@@ -17,7 +17,7 @@ async def get_repo_names(
     async with ClientSession() as session:
         repos = await fetch(
             session=session,
-            url=f"{base_url}/orgs/{org_name}/repos",
+            url=f"{base_url}/orgs/{owner_name}/repos",
             headers=headers,
             params={
                 "type": "all",
@@ -37,7 +37,7 @@ async def get_repo_names(
 
 
 async def get_merged_pr_count(
-    org_name: str,
+    owner_name: str,
     repo_names: list[str],
     github_token: str,
     start_datetime: datetime,
@@ -52,14 +52,14 @@ async def get_merged_pr_count(
     headers = {"Authorization": f"token {github_token}"}
 
     async with ClientSession() as session:
-        for repo in repo_names:
+        for repo_name in repo_names:
             count = 0
             earliest_merged_at = end_datetime
             page = 1
             while earliest_merged_at >= start_datetime:
                 prs = await fetch(
                     session,
-                    f"{base_url}/repos/{org_name}/{repo}/pulls",
+                    f"{base_url}/repos/{owner_name}/{repo_name}/pulls",
                     headers,
                     {
                         "state": "closed",
@@ -92,13 +92,13 @@ async def get_merged_pr_count(
 
                 earliest_merged_at = parse_datetime(prs[-1]["merged_at"])
                 page += 1
-            print(f"repo: {repo:32} | page: {page:4} | count: {count:4}")
+            print(f"repo: {repo_name:32} | page: {page:4} | count: {count:4}")
 
     return merged_pr_counts
 
 
 async def get_pr_review_count(
-    org_name: str,
+    owner_name: str,
     repo_names: list[str],
     github_token: str,
     start_datetime: datetime,
@@ -117,14 +117,14 @@ async def get_pr_review_count(
     headers = {"Authorization": f"token {github_token}"}
 
     async with ClientSession() as session:
-        for repo in repo_names:
+        for repo_name in repo_names:
             count = 0
             earliest_created_at = end_datetime
             page = 1
             while earliest_created_at >= start_datetime:
                 prs = await fetch(
                     session=session,
-                    url=f"{base_url}/repos/{org_name}/{repo}/pulls",
+                    url=f"{base_url}/repos/{owner_name}/{repo_name}/pulls",
                     headers=headers,
                     params={
                         "state": "all",
@@ -153,7 +153,7 @@ async def get_pr_review_count(
                     reviews = await fetch(
                         session=session,
                         url=(
-                            f"{base_url}/repos/{org_name}/{repo}"
+                            f"{base_url}/repos/{owner_name}/{repo_name}"
                             f"/pulls/{pr['number']}/reviews"
                         ),
                         headers=headers,
@@ -186,7 +186,7 @@ async def get_pr_review_count(
 
                 earliest_created_at = parse_datetime(prs[-1]["created_at"])
                 page += 1
-            print(f"repo: {repo:32} | page: {page:4} | count: {count:4}")
+            print(f"repo: {repo_name:32} | page: {page:4} | count: {count:4}")
 
     return {
         "review": review_counts,
