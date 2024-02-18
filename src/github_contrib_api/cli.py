@@ -9,11 +9,28 @@ app = typer.Typer()
 def repo(
     owner_name: list[str],
     github_token: Annotated[
-        str, typer.Option(envvar="GITHUB_TOKEN", prompt=True, hide_input=True)
+        str,
+        typer.Option(
+            envvar="GITHUB_TOKEN",
+            show_default=False,
+            prompt=True,
+            hide_input=True,
+        ),
     ],
-    start_date: Annotated[datetime, typer.Option(formats=["%Y-%m-%d"])],
+    start_date: Annotated[
+        datetime,
+        typer.Option(
+            show_default=False,
+            formats=["%Y-%m-%d"],
+        ),
+    ],
     end_date: Annotated[
-        datetime, typer.Option(formats=["%Y-%m-%d"], default_factory=datetime.now)
+        datetime,
+        typer.Option(
+            default_factory=datetime.now,
+            show_default="today",
+            formats=["%Y-%m-%d"],
+        ),
     ],
 ):
     """Get a list of pushed repository names between start-date and end-date."""
