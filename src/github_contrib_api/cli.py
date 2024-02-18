@@ -1,13 +1,16 @@
-from datetime import datetime
+import asyncio
+from datetime import datetime, time
 from typing import Annotated
 import typer
+
+from .apps import get_repo_names
 
 app = typer.Typer()
 
 
 @app.command()
 def repo(
-    owner_name: list[str],
+    owner_name: str,  # TODO: list[str] type
     github_token: Annotated[
         str,
         typer.Option(
@@ -34,10 +37,21 @@ def repo(
             formats=["%Y-%m-%d"],
         ),
     ],
-):
+) -> None:
     """Get a list of pushed repository names between start-date and end-date."""
-    # TODO: Remove this line
-    print(owner_name, github_token, start_datetime, end_datetime)
+
+    async def _repo() -> None:
+        repo_names: list[str] = await get_repo_names(
+            owner_name=owner_name,
+            github_token=github_token,
+            start_datetime=datetime.combine(start_datetime, time.min).astimezone(),
+            end_datetime=datetime.combine(end_datetime, time.max).astimezone(),
+        )
+
+        for repo_name in repo_names:
+            typer.echo(repo_name)
+
+    asyncio.run(_repo())
 
 
 @app.command()
