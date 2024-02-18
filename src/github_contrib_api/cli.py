@@ -12,7 +12,7 @@ app = typer.Typer()
 
 @app.command()
 def repo(
-    owner_names: Annotated[
+    owners: Annotated[
         list[str],
         typer.Argument(
             show_default=False,
@@ -55,11 +55,11 @@ def repo(
                 start_datetime=datetime.combine(start_datetime, time.min).astimezone(),
                 end_datetime=datetime.combine(end_datetime, time.max).astimezone(),
             )
-            for owner_name in owner_names
+            for owner_name in owners
         ]
         repo_names_list: list[list[str]] = await asyncio.gather(*tasks)
 
-        for owner_name, repo_names in zip(owner_names, repo_names_list):
+        for owner_name, repo_names in zip(owners, repo_names_list):
             print(f"[bold]{owner_name}:[/bold]")
             for repo_name in sorted(repo_names):
                 print(f"  [cyan]{repo_name}[/cyan]")
