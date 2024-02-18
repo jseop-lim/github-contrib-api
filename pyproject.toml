@@ -5,7 +5,7 @@ description = "Use the GitHub REST API to collect statistics on GitHub contribut
 authors = ["Jeongseop Lim <jseoplim@gmail.com>"]
 maintainers = ["Jeongseop Lim <jseoplim@gmail.com>"]
 readme = "README.md"
-repository = "https://github.com/jseoplim/github-contrib-api"
+repository = "https://github.com/jseop-lim/github-contrib-api"
 license = "MIT"
 packages = [
     { include = "github_contrib_api", from = "src" },
