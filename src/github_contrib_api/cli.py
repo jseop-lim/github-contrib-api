@@ -17,16 +17,18 @@ def repo(
             hide_input=True,
         ),
     ],
-    start_date: Annotated[
+    start_datetime: Annotated[
         datetime,
         typer.Option(
+            "--start-date",
             show_default=False,
             formats=["%Y-%m-%d"],
         ),
     ],
-    end_date: Annotated[
+    end_datetime: Annotated[
         datetime,
         typer.Option(
+            "--end-date",
             default_factory=datetime.now,
             show_default="today",
             formats=["%Y-%m-%d"],
@@ -34,7 +36,8 @@ def repo(
     ],
 ):
     """Get a list of pushed repository names between start-date and end-date."""
-    print(owner_name, github_token, start_date, end_date)  # TODO: Remove this line
+    # TODO: Remove this line
+    print(owner_name, github_token, start_datetime, end_datetime)
 
 
 @app.command()
