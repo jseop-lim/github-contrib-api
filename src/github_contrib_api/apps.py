@@ -1,4 +1,4 @@
-import aiohttp
+from aiohttp import ClientSession
 from datetime import datetime
 
 from github_contrib_api.core import fetch
@@ -12,7 +12,7 @@ async def get_repo_names(
     base_url = "https://api.github.com"
     headers = {"Authorization": f"token {github_token}"}
 
-    async with aiohttp.ClientSession() as session:
+    async with ClientSession() as session:
         repos = await fetch(
             session=session,
             url=f"{base_url}/orgs/{org_name}/repos",
@@ -47,7 +47,7 @@ async def get_merged_pr_count(
     merged_pr_counts = {}
     headers = {"Authorization": f"token {github_token}"}
 
-    async with aiohttp.ClientSession() as session:
+    async with ClientSession() as session:
         for repo in repo_names:
             count = 0
             earliest_merged_at = max_datetime
@@ -112,7 +112,7 @@ async def get_pr_review_count(
     review_requested_counts = {}
     headers = {"Authorization": f"token {github_token}"}
 
-    async with aiohttp.ClientSession() as session:
+    async with ClientSession() as session:
         for repo in repo_names:
             count = 0
             earliest_created_at = max_datetime
