@@ -1,7 +1,9 @@
 import asyncio
+from collections.abc import Coroutine
 from datetime import datetime, time
-from typing import Annotated
+from typing import Annotated, Any
 import typer
+from rich import print
 
 from .apps import get_repo_names
 
@@ -10,7 +12,12 @@ app = typer.Typer()
 
 @app.command()
 def repo(
-    owner_name: str,  # TODO: list[str] type
+    owner_names: Annotated[
+        list[str],
+        typer.Argument(
+            show_default=False,
+        ),
+    ],
     github_token: Annotated[
         str,
         typer.Option(
@@ -41,15 +48,22 @@ def repo(
     """Get a list of pushed repository names between start-date and end-date."""
 
     async def _repo() -> None:
-        repo_names: list[str] = await get_repo_names(
-            owner_name=owner_name,
-            github_token=github_token,
-            start_datetime=datetime.combine(start_datetime, time.min).astimezone(),
-            end_datetime=datetime.combine(end_datetime, time.max).astimezone(),
-        )
+        tasks: list[Coroutine[Any, Any, list[str]]] = [
+            get_repo_names(
+                owner_name=owner_name,
+                github_token=github_token,
+                start_datetime=datetime.combine(start_datetime, time.min).astimezone(),
+                end_datetime=datetime.combine(end_datetime, time.max).astimezone(),
+            )
+            for owner_name in owner_names
+        ]
+        repo_names_list: list[list[str]] = await asyncio.gather(*tasks)
 
-        for repo_name in repo_names:
-            typer.echo(repo_name)
+        for owner_name, repo_names in zip(owner_names, repo_names_list):
+            print(f"[bold]{owner_name}:[/bold]")
+            for repo_name in sorted(repo_names):
+                print(f"  [cyan]{repo_name}[/cyan]")
+            print()
 
     asyncio.run(_repo())
 
