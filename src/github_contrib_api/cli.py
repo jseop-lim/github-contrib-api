@@ -12,7 +12,9 @@ def repo(
         str, typer.Option(envvar="GITHUB_TOKEN", prompt=True, hide_input=True)
     ],
     start_date: Annotated[datetime, typer.Option(formats=["%Y-%m-%d"])],
-    end_date: Annotated[datetime, typer.Option(formats=["%Y-%m-%d"])],
+    end_date: Annotated[
+        datetime, typer.Option(formats=["%Y-%m-%d"], default_factory=datetime.now)
+    ],
 ):
     """Get a list of pushed repository names between start-date and end-date."""
     print(owner_name, github_token, start_date, end_date)  # TODO: Remove this line
