@@ -69,8 +69,49 @@ def repo(
 
 
 @app.command()
-def pr():  # TODO: Add command arguments and options
+def pr(
+    repos: Annotated[
+        list[str],
+        typer.Argument(
+            show_default=False,
+        ),
+    ],
+    github_token: Annotated[
+        str,
+        typer.Option(
+            envvar="GITHUB_TOKEN",
+            show_default=False,
+            prompt=True,
+            hide_input=True,
+        ),
+    ],
+    start_datetime: Annotated[
+        datetime,
+        typer.Option(
+            "--start-date",
+            show_default=False,
+            formats=["%Y-%m-%d"],
+        ),
+    ],
+    end_datetime: Annotated[
+        datetime,
+        typer.Option(
+            "--end-date",
+            default_factory=datetime.now,
+            show_default="today",  # type: ignore
+            formats=["%Y-%m-%d"],
+        ),
+    ],
+    owner: Annotated[
+        str,
+        typer.Option(
+            show_default=True,
+        ),
+    ] = "",
+) -> None:
     """Get a list of merged PR counts between start-date and end-date."""
+    print(repos, github_token, start_datetime, end_datetime, owner)
+    return
 
 
 def main() -> None:
