@@ -1,7 +1,9 @@
-from aiohttp import ClientSession
 from datetime import datetime
 
+from aiohttp import ClientSession
+
 from .core import fetch
+from .types import Repository
 from .utils import parse_datetime
 
 
@@ -37,63 +39,63 @@ async def get_repo_names(
 
 
 async def get_merged_pr_count(
-    owner_name: str,
-    repo_names: list[str],
+    repo_tuple: Repository,
     github_token: str,
     start_datetime: datetime,
     end_datetime: datetime,
 ) -> dict[str, int]:
     """PR 관련 지표를 구한다.
 
-    - 각 팀원이 2023년에 회사 GitHub 조직의 모든 저장소에 생성하고 병합한 PR 수
+    - 각 팀원이 GitHub 저장소에 생성하고 병합한 PR 수
     """
     base_url = "https://api.github.com"
     merged_pr_counts = {}
     headers = {"Authorization": f"token {github_token}"}
 
+    owner_name, repo_name = repo_tuple
+    page = 1
+    earliest_merged_at = end_datetime
+    count = 0
+
     async with ClientSession() as session:
-        for repo_name in repo_names:
-            count = 0
-            earliest_merged_at = end_datetime
-            page = 1
-            while earliest_merged_at >= start_datetime:
-                prs = await fetch(
-                    session,
-                    f"{base_url}/repos/{owner_name}/{repo_name}/pulls",
-                    headers,
-                    {
-                        "state": "closed",
-                        "sort": "created",
-                        "direction": "desc",
-                        "page": page,
-                        "per_page": 100,
-                    },
-                )
+        while earliest_merged_at >= start_datetime:
+            prs = await fetch(
+                session,
+                f"{base_url}/repos/{owner_name}/{repo_name}/pulls",
+                headers,
+                {
+                    "state": "closed",
+                    "sort": "created",
+                    "direction": "desc",
+                    "page": page,
+                    "per_page": 100,
+                },
+            )
 
+            if (
+                not prs
+                or not prs[-1]["merged_at"]
+                or earliest_merged_at < start_datetime
+            ):
+                break
+
+            for pr in prs:
                 if (
-                    not prs
-                    or not prs[-1]["merged_at"]
-                    or earliest_merged_at < start_datetime
+                    pr["merged_at"]
+                    and start_datetime
+                    <= parse_datetime(pr["merged_at"])
+                    <= end_datetime
                 ):
-                    break
+                    user_login = pr["user"]["login"]
+                    if user_login not in merged_pr_counts:
+                        merged_pr_counts[user_login] = 0
+                    merged_pr_counts[user_login] += 1
+                    count += 1
 
-                for pr in prs:
-                    if (
-                        pr["merged_at"]
-                        and start_datetime
-                        <= parse_datetime(pr["merged_at"])
-                        <= end_datetime
-                    ):
-                        user_login = pr["user"]["login"]
-                        if user_login not in merged_pr_counts:
-                            merged_pr_counts[user_login] = 0
-                        merged_pr_counts[user_login] += 1
-                        count += 1
+            earliest_merged_at = parse_datetime(prs[-1]["merged_at"])
+            page += 1
 
-                earliest_merged_at = parse_datetime(prs[-1]["merged_at"])
-                page += 1
-            print(f"repo: {repo_name:32} | page: {page:4} | count: {count:4}")
-
+    print(f"repo: {repo_name:32} | page: {page:4} | count: {count:4}")
     return merged_pr_counts
 
 
