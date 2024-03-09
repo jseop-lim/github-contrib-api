@@ -10,7 +10,7 @@ from typing import Annotated, Any
 import typer
 from rich import print
 
-from .apps import get_merged_pr_count, get_repo_names
+from .apps import get_merged_pr_count, get_pr_review_count, get_repo_names
 from .callbacks import owner_callback, repos_callback
 from .files import export_pr_count_to_csv
 from .types import Repository
@@ -173,6 +173,128 @@ def pr(
             )
 
     asyncio.run(_repo())
+
+
+@app.command()
+def review(
+    repos: Annotated[
+        list[str],
+        typer.Argument(
+            callback=repos_callback,
+            show_default=False,
+        ),
+    ],
+    github_token: Annotated[
+        str,
+        typer.Option(
+            envvar="GITHUB_TOKEN",
+            show_default=False,
+            prompt=True,
+            hide_input=True,
+        ),
+    ],
+    start_datetime: Annotated[
+        datetime,
+        typer.Option(
+            "--start-date",
+            show_default=False,
+            formats=["%Y-%m-%d"],
+        ),
+    ],
+    end_datetime: Annotated[
+        datetime,
+        typer.Option(
+            "--end-date",
+            default_factory=datetime.now,
+            show_default="today",  # type: ignore
+            formats=["%Y-%m-%d"],
+        ),
+    ],
+    owner: Annotated[
+        str,
+        typer.Option(
+            callback=owner_callback,
+            show_default=False,
+        ),
+    ] = "",
+    csv_output: Annotated[
+        Path | None,
+        typer.Option(
+            show_default=False,
+            exists=False,
+            file_okay=True,
+            dir_okay=False,
+            writable=True,
+            readable=False,
+            resolve_path=True,
+        ),
+    ] = None,
+) -> None:
+    """Get a list of merged PR counts between start-date and end-date."""
+    repo_tuples: list[Repository] = (
+        [Repository(owner=owner, name=name) for name in repos]
+        if owner
+        else [
+            Repository(owner=name.split("/")[0], name=name.split("/")[1])
+            for name in repos
+        ]
+    )
+
+    async def _review() -> None:
+        print("\n<Pull Request Reviews>")
+        tasks: list[Coroutine[Any, Any, dict[str, dict[str, int]]]] = [
+            get_pr_review_count(
+                repo_tuple=repo_tuple,
+                github_token=github_token,
+                start_datetime=datetime.combine(start_datetime, time.min).astimezone(),
+                end_datetime=datetime.combine(end_datetime, time.max).astimezone(),
+            )
+            for repo_tuple in repo_tuples
+        ]
+        results: list[dict[str, dict[str, int]]] = await asyncio.gather(*tasks)
+        review_counts: list[dict[str, int]] = [item["review"] for item in results]
+        merged_review_count: dict[str, int] = reduce(
+            iadd,
+            map(Counter, review_counts),  # type: ignore[arg-type]
+            Counter(),
+        )
+        review_pr_counts: list[dict[str, int]] = [item["pr"] for item in results]
+        merged_review_pr_count: dict[str, int] = reduce(
+            iadd,
+            map(Counter, review_pr_counts),  # type: ignore[arg-type]
+            Counter(),
+        )
+        review_requested_pr_counts: list[dict[str, int]] = [
+            item["requested"] for item in results
+        ]
+        merged_review_requested_pr_count: dict[str, int] = reduce(
+            iadd,
+            map(Counter, review_requested_pr_counts),  # type: ignore[arg-type]
+            Counter(),
+        )
+
+        print("\n<Ranking>")
+        for rank, user_name in enumerate(
+            sorted(
+                merged_review_pr_count.keys() | merged_review_requested_pr_count.keys(),
+                key=lambda x: merged_review_count.get(x, 0),
+                reverse=True,
+            ),
+            start=1,
+        ):
+            review_count = merged_review_count.get(user_name, 0)
+            done_count = merged_review_pr_count.get(user_name, 0)
+            missed_count = merged_review_requested_pr_count.get(user_name, 0)
+            print(
+                f"{rank:3}. {user_name:20} {review_count:4}"
+                f"  (done: {done_count:4} | missed: {missed_count:4}"
+                f" | ratio: {done_count / (done_count + missed_count) * 100:3.0f}%)"
+            )
+
+        if csv_output:
+            ...
+
+    asyncio.run(_review())
 
 
 def main() -> None:
