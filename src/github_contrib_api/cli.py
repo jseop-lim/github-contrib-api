@@ -40,7 +40,7 @@ def repo(
         typer.Option(
             "--end-date",
             default_factory=datetime.now,
-            show_default="today",
+            show_default="today",  # type: ignore
             formats=["%Y-%m-%d"],
         ),
     ],
