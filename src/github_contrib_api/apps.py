@@ -54,16 +54,16 @@ async def get_merged_pr_count(
 
     owner_name, repo_name = repo_tuple
     page = 1
-    earliest_merged_at = end_datetime
+    earliest_created_at = end_datetime
     count = 0
 
     async with ClientSession() as session:
-        while earliest_merged_at >= start_datetime:
+        while earliest_created_at >= start_datetime:
             prs = await fetch(
-                session,
-                f"{base_url}/repos/{owner_name}/{repo_name}/pulls",
-                headers,
-                {
+                session=session,
+                url=f"{base_url}/repos/{owner_name}/{repo_name}/pulls",
+                headers=headers,
+                params={
                     "state": "closed",
                     "sort": "created",
                     "direction": "desc",
@@ -72,11 +72,7 @@ async def get_merged_pr_count(
                 },
             )
 
-            if (
-                not prs
-                or not prs[-1]["merged_at"]
-                or earliest_merged_at < start_datetime
-            ):
+            if not prs or earliest_created_at < start_datetime:
                 break
 
             for pr in prs:
@@ -92,7 +88,7 @@ async def get_merged_pr_count(
                     merged_pr_counts[user_login] += 1
                     count += 1
 
-            earliest_merged_at = parse_datetime(prs[-1]["merged_at"])
+            earliest_created_at = parse_datetime(prs[-1]["created_at"])
             page += 1
 
     print(f"repo: {repo_name:32} | page: {page:4} | count: {count:4}")
