@@ -1,13 +1,17 @@
 import asyncio
+from collections import Counter
 from collections.abc import Coroutine
 from datetime import datetime, time
+from functools import reduce
+from operator import iadd
 from typing import Annotated, Any
 
 import typer
 from rich import print
 
-from .apps import get_repo_names
+from .apps import get_merged_pr_count, get_repo_names
 from .callbacks import owner_callback, repos_callback
+from .types import Repository
 
 app = typer.Typer()
 
@@ -115,7 +119,42 @@ def pr(
 ) -> None:
     """Get a list of merged PR counts between start-date and end-date."""
     print(repos, github_token, start_datetime, end_datetime, owner)
-    return
+
+    repo_tuples: list[Repository] = (
+        [Repository(owner=owner, name=name) for name in repos]
+        if owner
+        else [
+            Repository(owner=name.split("/")[0], name=name.split("/")[1])
+            for name in repos
+        ]
+    )
+
+    async def _repo() -> None:
+        print("\n<Merged Pull Requests>")
+        tasks: list[Coroutine[Any, Any, dict[str, int]]] = [
+            get_merged_pr_count(
+                repo_tuple=repo_tuple,
+                github_token=github_token,
+                start_datetime=datetime.combine(start_datetime, time.min).astimezone(),
+                end_datetime=datetime.combine(end_datetime, time.max).astimezone(),
+            )
+            for repo_tuple in repo_tuples
+        ]
+        results: list[dict[str, int]] = await asyncio.gather(*tasks)
+        merged_pr_count: dict[str, int] = reduce(
+            iadd,
+            map(Counter, results),  # type: ignore[arg-type]
+            Counter(),
+        )
+
+        print("\n<Ranking>")
+        for rank, d in enumerate(
+            sorted(merged_pr_count.items(), key=lambda x: x[1], reverse=True),
+            start=1,
+        ):
+            print(f"{rank:3}. {d[0]:20} {d[1]:4}")
+
+    asyncio.run(_repo())
 
 
 def main() -> None:
