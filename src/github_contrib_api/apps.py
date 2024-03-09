@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import datetime
 
 from aiohttp import ClientSession
@@ -49,13 +50,12 @@ async def get_merged_pr_count(
     - 각 팀원이 GitHub 저장소에 생성하고 병합한 PR 수
     """
     base_url = "https://api.github.com"
-    merged_pr_counts = {}
     headers = {"Authorization": f"token {github_token}"}
 
     owner_name, repo_name = repo_tuple
+    merged_pr_count: Counter = Counter()
     page = 1
     earliest_created_at = end_datetime
-    count = 0
 
     async with ClientSession() as session:
         while earliest_created_at >= start_datetime:
@@ -75,24 +75,18 @@ async def get_merged_pr_count(
             if not prs or earliest_created_at < start_datetime:
                 break
 
-            for pr in prs:
-                if (
-                    pr["merged_at"]
-                    and start_datetime
-                    <= parse_datetime(pr["merged_at"])
-                    <= end_datetime
-                ):
-                    user_login = pr["user"]["login"]
-                    if user_login not in merged_pr_counts:
-                        merged_pr_counts[user_login] = 0
-                    merged_pr_counts[user_login] += 1
-                    count += 1
-
+            merged_pr_count += Counter(
+                pr["user"]["login"]
+                for pr in prs
+                if pr["merged_at"]  # Exists if PR is merged else None
+                and start_datetime <= parse_datetime(pr["merged_at"]) <= end_datetime
+            )
             earliest_created_at = parse_datetime(prs[-1]["created_at"])
             page += 1
 
+    count = sum(merged_pr_count.values())
     print(f"repo: {repo_name:32} | page: {page:4} | count: {count:4}")
-    return merged_pr_counts
+    return dict(merged_pr_count)
 
 
 async def get_pr_review_count(
