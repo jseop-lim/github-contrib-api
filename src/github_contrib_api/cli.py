@@ -4,6 +4,7 @@ from collections.abc import Coroutine
 from datetime import datetime, time
 from functools import reduce
 from operator import iadd
+from pathlib import Path
 from typing import Annotated, Any
 
 import typer
@@ -11,6 +12,7 @@ from rich import print
 
 from .apps import get_merged_pr_count, get_repo_names
 from .callbacks import owner_callback, repos_callback
+from .files import export_pr_count_to_csv
 from .types import Repository
 
 app = typer.Typer()
@@ -113,13 +115,23 @@ def pr(
         str,
         typer.Option(
             callback=owner_callback,
-            show_default=True,
+            show_default=False,
         ),
     ] = "",
+    csv_output: Annotated[
+        Path | None,
+        typer.Option(
+            show_default=False,
+            exists=False,
+            file_okay=True,
+            dir_okay=False,
+            writable=True,
+            readable=False,
+            resolve_path=True,
+        ),
+    ] = None,
 ) -> None:
     """Get a list of merged PR counts between start-date and end-date."""
-    print(repos, github_token, start_datetime, end_datetime, owner)
-
     repo_tuples: list[Repository] = (
         [Repository(owner=owner, name=name) for name in repos]
         if owner
@@ -153,6 +165,12 @@ def pr(
             start=1,
         ):
             print(f"{rank:3}. {d[0]:20} {d[1]:4}")
+
+        if csv_output:
+            export_pr_count_to_csv(
+                pr_count=dict(zip(repos, results)),
+                file_path=csv_output,
+            )
 
     asyncio.run(_repo())
 
