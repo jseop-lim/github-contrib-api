@@ -2,10 +2,12 @@ import asyncio
 from collections.abc import Coroutine
 from datetime import datetime, time
 from typing import Annotated, Any
+
 import typer
 from rich import print
 
 from .apps import get_repo_names
+from .callbacks import owner_callback, repos_callback
 
 app = typer.Typer()
 
@@ -73,6 +75,7 @@ def pr(
     repos: Annotated[
         list[str],
         typer.Argument(
+            callback=repos_callback,
             show_default=False,
         ),
     ],
@@ -105,6 +108,7 @@ def pr(
     owner: Annotated[
         str,
         typer.Option(
+            callback=owner_callback,
             show_default=True,
         ),
     ] = "",
